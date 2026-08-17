@@ -27,6 +27,7 @@ const {
   loadPosition,
 } = toRefs(appStore.quickBeam);
 const solveState = ref<'idle' | 'solving' | 'solved' | 'error'>('idle');
+const activeDiagram = ref<'deflection' | 'shear' | 'moment'>('deflection');
 
 const steps = [
   { id: 1, label: 'Beam', icon: 'mdi-vector-line' },
@@ -114,6 +115,141 @@ const formattedResults = computed(() => [
     color: '#dc2626',
   },
 ]);
+
+const diagramOptions = [
+  { value: 'deflection', title: 'Deflection', unit: 'mm', icon: 'mdi-chart-bell-curve-cumulative', color: '#2563eb' },
+  { value: 'shear', title: 'Shear force', unit: 'kN', icon: 'mdi-chart-timeline-variant', color: '#dc2626' },
+  { value: 'moment', title: 'Bending moment', unit: 'kNm', icon: 'mdi-chart-areaspline', color: '#7c3aed' },
+] as const;
+
+const activeDiagramOption = computed(
+  () => diagramOptions.find((option) => option.value === activeDiagram.value) ?? diagramOptions[0]
+);
+
+const diagramValues = computed(() => {
+  if (!modelIsSolved.value) return [] as number[];
+  const beam = [...projectStore.solver.domain.elements.values()].find((element) => element instanceof Beam2D) as
+    | Beam2D
+    | undefined;
+  if (!beam) return [] as number[];
+
+  if (activeDiagram.value === 'deflection') {
+    return beam.computeGlobalDefl(projectStore.solver.loadCases[0], 80).w.map((value) => value * 1000);
+  }
+  if (activeDiagram.value === 'shear') {
+    return (beam.computeShearForce(projectStore.solver.loadCases[0], 80).V as number[]).map((value) => value / 1000);
+  }
+  return (beam.computeBendingMoment(projectStore.solver.loadCases[0], 80).M as number[]).map((value) => value / 1000);
+});
+
+const diagramGeometry = computed(() => {
+  const values = diagramValues.value;
+  const width = 900;
+  const height = 280;
+  const left = 62;
+  const right = 24;
+  const top = 28;
+  const bottom = 42;
+  if (values.length === 0) return { line: '', area: '', zeroY: height / 2, min: 0, max: 0 };
+
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const range = Math.max(max - min, 1e-9);
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const x = (index: number) => left + (index / Math.max(values.length - 1, 1)) * plotWidth;
+  const y = (value: number) => top + ((max - value) / range) * plotHeight;
+  const zeroY = y(0);
+  const points = values.map((value, index) => `${x(index).toFixed(1)},${y(value).toFixed(1)}`);
+
+  return {
+    line: points.join(' '),
+    area: `${left},${zeroY.toFixed(1)} ${points.join(' ')} ${left + plotWidth},${zeroY.toFixed(1)}`,
+    zeroY,
+    min,
+    max,
+  };
+});
+
+const totalVerticalLoad = computed(() => {
+  const length = Number(beamLength.value);
+  const magnitude = Number(loadMagnitude.value);
+  if (loadType.value === 'udl') return magnitude * length;
+  if (loadType.value === 'point') return magnitude;
+  if (loadType.value === 'trapezoidal') return ((magnitude + Number(loadEndMagnitude.value)) / 2) * length;
+  return 0;
+});
+
+const supportReactions = computed(() => {
+  if (!modelIsSolved.value) return [] as { label: string; vertical: number; moment: number }[];
+  const loadCase = projectStore.solver.loadCases[0];
+  return [...projectStore.solver.domain.nodes.values()]
+    .map((node) => {
+      const reactions = node.getReactions(loadCase, !node.hasLcs());
+      const reactionValue = (dof: DofID) => {
+        const index = reactions.dofs.findIndex((reactionDof) => reactionDof === dof);
+        if (index < 0) return 0;
+        const values = reactions.values as unknown as number[] | { get: (matrixIndex: number[]) => number };
+        return 'get' in values ? Number(values.get([index])) : Number(values[index]);
+      };
+      return {
+        label: String(node.label),
+        vertical: Math.abs(reactionValue(DofID.Dz)) / 1000,
+        moment: Math.abs(reactionValue(DofID.Ry)) / 1000,
+      };
+    })
+    .filter((reaction) => reaction.vertical > 1e-8 || reaction.moment > 1e-8);
+});
+
+const calculationSteps = computed(() => {
+  const e = Number(youngsModulus.value);
+  const inertia = Number(secondMoment.value);
+  const stiffness = e * 1e9 * inertia * 1e-8;
+  const reactions = supportReactions.value
+    .map((reaction) => `R${reaction.label} = ${reaction.vertical.toFixed(2)} kN`)
+    .join(', ');
+  const loadDescription =
+    loadType.value === 'udl'
+      ? `W = wL = ${loadMagnitude.value} × ${beamLength.value} = ${totalVerticalLoad.value.toFixed(2)} kN`
+      : loadType.value === 'point'
+        ? `P = ${loadMagnitude.value} kN at x = ${loadPosition.value} m`
+        : loadType.value === 'moment'
+          ? `M = ${loadMagnitude.value} kNm at x = ${loadPosition.value} m`
+          : `W = (w₁ + w₂)L / 2 = ${totalVerticalLoad.value.toFixed(2)} kN`;
+
+  return [
+    {
+      number: '01',
+      title: 'Model inputs',
+      formula: `L = ${beamLength.value} m · E = ${e} GPa · A = ${sectionArea.value} cm² · I = ${inertia} cm⁴`,
+      note: `${selectedSupport.value?.title}. ${loadDescription}.`,
+    },
+    {
+      number: '02',
+      title: 'Element stiffness',
+      formula: 'kₑ = ∫ BᵀDB dx',
+      note: `The solver forms the axial and bending stiffness matrix. Here EI = ${stiffness.toExponential(3)} N·m².`,
+    },
+    {
+      number: '03',
+      title: 'Loads and equilibrium',
+      formula: 'ΣFy = 0 · ΣM = 0',
+      note: reactions || 'Equivalent nodal loads are assembled at the restrained degrees of freedom.',
+    },
+    {
+      number: '04',
+      title: 'Solve displacements',
+      formula: 'K d = F',
+      note: `After support restraints are applied, the global system is solved. Maximum deflection = ${(beamResult.value.deflection * 1000).toFixed(3)} mm.`,
+    },
+    {
+      number: '05',
+      title: 'Recover beam forces',
+      formula: 'V(x) = dM/dx · M(x) = EIκ(x)',
+      note: `Maximum |V| = ${(beamResult.value.shear / 1000).toFixed(3)} kN and maximum |M| = ${(beamResult.value.moment / 1000).toFixed(3)} kNm.`,
+    },
+  ];
+});
 
 const selectedSupport = computed(() => supportOptions.find((option) => option.value === supportType.value));
 
@@ -203,10 +339,11 @@ const buildAndSolve = async () => {
     viewerStore.showLoads = true;
     viewerStore.showSupports = true;
     viewerStore.showReactions = true;
-    viewerStore.showDeformedShape = true;
+    viewerStore.showDeformedShape = false;
     viewerStore.showNormalForce = false;
     viewerStore.showShearForce = false;
-    viewerStore.showBendingMoment = true;
+    viewerStore.showBendingMoment = false;
+    activeDiagram.value = 'deflection';
     solveState.value = 'solved';
     eventBus.emit(EventType.FIT_CONTENT);
   } catch (error) {
@@ -221,6 +358,11 @@ const nextStep = () => {
 };
 
 onMounted(() => {
+  viewerStore.showDeformedShape = false;
+  viewerStore.showNormalForce = false;
+  viewerStore.showShearForce = false;
+  viewerStore.showBendingMoment = false;
+  viewerStore.settingsOpen = false;
   if (projectStore.solver.domain.elements.size > 0) {
     solveState.value = modelIsSolved.value ? 'solved' : 'idle';
     requestAnimationFrame(() => eventBus.emit(EventType.FIT_CONTENT));
@@ -442,27 +584,9 @@ onMounted(() => {
           <p class="eyebrow">Analysis canvas</p>
           <h2>{{ selectedSupport?.title }} · {{ beamLength }} m</h2>
         </div>
-        <div class="view-toggles" aria-label="Result display controls">
-          <v-btn-toggle color="primary" density="comfortable" variant="outlined" divided>
-            <v-btn
-              :active="viewerStore.showDeformedShape"
-              class="text-none"
-              @click="viewerStore.showDeformedShape = !viewerStore.showDeformedShape"
-              >Deflection</v-btn
-            >
-            <v-btn
-              :active="viewerStore.showShearForce"
-              class="text-none"
-              @click="viewerStore.showShearForce = !viewerStore.showShearForce"
-              >Shear</v-btn
-            >
-            <v-btn
-              :active="viewerStore.showBendingMoment"
-              class="text-none"
-              @click="viewerStore.showBendingMoment = !viewerStore.showBendingMoment"
-              >Moment</v-btn
-            >
-          </v-btn-toggle>
+        <div class="model-view-label">
+          <v-icon icon="mdi-vector-line" size="18" />
+          Model and loads only
         </div>
       </div>
 
@@ -491,6 +615,99 @@ onMounted(() => {
             ><strong>{{ modelIsSolved ? 'Linear model solved' : 'Ready to analyze' }}</strong>
           </div>
         </article>
+      </section>
+
+      <section v-if="modelIsSolved" class="results-section" aria-labelledby="diagram-section-title">
+        <div class="results-heading">
+          <div>
+            <p class="eyebrow">Results</p>
+            <h2 id="diagram-section-title">Choose a diagram</h2>
+            <p>Each result is separated from the beam model for a clearer engineering view.</p>
+          </div>
+        </div>
+
+        <div class="diagram-picker" role="tablist" aria-label="Beam result diagrams">
+          <button
+            v-for="option in diagramOptions"
+            :key="option.value"
+            type="button"
+            role="tab"
+            :aria-selected="activeDiagram === option.value"
+            :class="['diagram-option', { active: activeDiagram === option.value }]"
+            @click="activeDiagram = option.value"
+          >
+            <v-icon :icon="option.icon" size="21" />
+            <span
+              ><strong>{{ option.title }}</strong
+              ><small>{{ option.unit }}</small></span
+            >
+          </button>
+        </div>
+
+        <div class="diagram-card">
+          <div class="diagram-title-row">
+            <div>
+              <span>{{ activeDiagramOption.title }}</span>
+              <strong>Along the {{ beamLength }} m beam</strong>
+            </div>
+            <div class="diagram-extremes">
+              <span
+                >Min <strong>{{ diagramGeometry.min.toFixed(2) }} {{ activeDiagramOption.unit }}</strong></span
+              >
+              <span
+                >Max <strong>{{ diagramGeometry.max.toFixed(2) }} {{ activeDiagramOption.unit }}</strong></span
+              >
+            </div>
+          </div>
+
+          <svg
+            class="result-diagram"
+            viewBox="0 0 900 280"
+            role="img"
+            :aria-label="`${activeDiagramOption.title} diagram`"
+          >
+            <line x1="62" x2="876" :y1="diagramGeometry.zeroY" :y2="diagramGeometry.zeroY" class="diagram-axis" />
+            <line x1="62" x2="62" y1="28" y2="238" class="diagram-axis diagram-axis-muted" />
+            <polygon :points="diagramGeometry.area" :fill="`${activeDiagramOption.color}18`" />
+            <polyline
+              :points="diagramGeometry.line"
+              fill="none"
+              :stroke="activeDiagramOption.color"
+              stroke-width="3"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+            />
+            <text x="62" y="264" text-anchor="middle">0 m</text>
+            <text x="876" y="264" text-anchor="middle">{{ beamLength }} m</text>
+            <text x="18" y="22">{{ activeDiagramOption.unit }}</text>
+          </svg>
+        </div>
+      </section>
+
+      <section v-if="modelIsSolved" class="calculation-section" aria-labelledby="calculation-section-title">
+        <div class="results-heading calculation-heading">
+          <div>
+            <p class="eyebrow">Calculation</p>
+            <h2 id="calculation-section-title">How the answer was calculated</h2>
+            <p>A concise finite-element calculation trail using your exact beam inputs.</p>
+          </div>
+          <v-chip color="primary" variant="tonal" prepend-icon="mdi-calculator-variant-outline">Linear FEM</v-chip>
+        </div>
+
+        <div class="calculation-list">
+          <article v-for="item in calculationSteps" :key="item.number" class="calculation-step">
+            <span class="calculation-number">{{ item.number }}</span>
+            <div>
+              <h3>{{ item.title }}</h3>
+              <code>{{ item.formula }}</code>
+              <p>{{ item.note }}</p>
+            </div>
+          </article>
+        </div>
+        <p class="calculation-note">
+          Sign conventions follow the solver’s local beam axes. Rounded values shown here are for explanation; the
+          diagrams use full-precision results.
+        </p>
       </section>
     </main>
   </div>
@@ -758,12 +975,14 @@ onMounted(() => {
   background: #fff;
 }
 .analysis-stage {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 16px;
   min-width: 0;
   min-height: 0;
   padding: 20px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.analysis-stage > * + * {
+  margin-top: 16px;
 }
 .stage-toolbar {
   display: flex;
@@ -776,9 +995,23 @@ onMounted(() => {
   font-size: 18px;
   margin-bottom: 0;
 }
+.model-view-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 9px;
+  background: #fff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
 .canvas-card {
   position: relative;
-  min-height: 0;
+  height: clamp(360px, 48vh, 560px);
+  min-height: 360px;
   overflow: hidden;
   background: #fff;
   border: 1px solid #dde5ef;
@@ -788,11 +1021,11 @@ onMounted(() => {
 .canvas-card :deep(.svg-viewer) {
   background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
 }
-.canvas-card :deep(#viewerControls) {
-  top: 16px !important;
-  right: 16px !important;
-}
-.canvas-card :deep(#viewerSettings) {
+.canvas-card :deep(.svg-viewer > div:first-child),
+.canvas-card :deep(#undoRedo),
+.canvas-card :deep(#viewerControls),
+.canvas-card :deep(#viewerSettings),
+.canvas-card :deep(.warning) {
   display: none !important;
 }
 .solve-error {
@@ -854,6 +1087,203 @@ onMounted(() => {
 .status-card strong {
   font-size: 13px;
 }
+.results-section,
+.calculation-section {
+  padding: 24px;
+  border: 1px solid #dde5ef;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.045);
+}
+.results-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.results-heading h2 {
+  margin: 3px 0 5px;
+  color: #0f172a;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.results-heading p:not(.eyebrow) {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+.diagram-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+.diagram-option {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 58px;
+  padding: 10px 14px;
+  border: 1px solid #dfe7f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.diagram-option:hover {
+  border-color: #93c5fd;
+  background: #f8fbff;
+}
+.diagram-option.active {
+  border-color: #60a5fa;
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 1px #60a5fa;
+}
+.diagram-option:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 2px;
+}
+.diagram-option span,
+.diagram-option strong,
+.diagram-option small {
+  display: block;
+}
+.diagram-option strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+.diagram-option small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+}
+.diagram-card {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+.diagram-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+.diagram-title-row span,
+.diagram-title-row strong {
+  display: block;
+}
+.diagram-title-row > div:first-child span {
+  color: #64748b;
+  font-size: 11px;
+}
+.diagram-title-row > div:first-child strong {
+  margin-top: 2px;
+  color: #0f172a;
+  font-size: 14px;
+}
+.diagram-extremes {
+  display: flex;
+  gap: 20px;
+  color: #64748b;
+  font-size: 11px;
+  text-align: right;
+}
+.diagram-extremes strong {
+  margin-top: 2px;
+  color: #334155;
+  font-size: 13px;
+}
+.result-diagram {
+  display: block;
+  width: 100%;
+  min-height: 240px;
+  color: #64748b;
+}
+.result-diagram text {
+  fill: currentColor;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+}
+.diagram-axis {
+  stroke: #94a3b8;
+  stroke-width: 1.25;
+}
+.diagram-axis-muted {
+  stroke: #cbd5e1;
+}
+.calculation-heading {
+  align-items: center;
+}
+.calculation-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.calculation-step {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+.calculation-step:last-child {
+  grid-column: 1 / -1;
+}
+.calculation-number {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+}
+.calculation-step h3 {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 14px;
+}
+.calculation-step code {
+  display: block;
+  padding: 9px 10px;
+  overflow-x: auto;
+  border: 1px solid #dbe4ef;
+  border-radius: 7px;
+  background: #fff;
+  color: #1e3a8a;
+  font-family: 'Roboto Mono', Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.calculation-step p,
+.calculation-note {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.calculation-step p {
+  margin: 9px 0 0;
+}
+.calculation-note {
+  margin: 14px 0 0;
+}
 
 @media (max-width: 1100px) {
   .guided-workspace {
@@ -861,6 +1291,12 @@ onMounted(() => {
   }
   .result-strip {
     grid-template-columns: 1fr 1fr;
+  }
+  .calculation-list {
+    grid-template-columns: 1fr;
+  }
+  .calculation-step:last-child {
+    grid-column: auto;
   }
   .analysis-stage {
     padding: 14px;
@@ -883,6 +1319,7 @@ onMounted(() => {
   }
   .analysis-stage {
     min-height: 620px;
+    overflow: visible;
   }
   .stage-toolbar {
     align-items: flex-start;
@@ -890,6 +1327,19 @@ onMounted(() => {
   }
   .result-strip {
     grid-template-columns: 1fr 1fr;
+  }
+  .diagram-picker {
+    grid-template-columns: 1fr;
+  }
+  .diagram-title-row,
+  .results-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .diagram-extremes {
+    width: 100%;
+    justify-content: space-between;
+    text-align: left;
   }
 }
 
@@ -903,9 +1353,9 @@ onMounted(() => {
   .result-strip {
     grid-template-columns: 1fr;
   }
-  .view-toggles {
-    width: 100%;
-    overflow-x: auto;
+  .results-section,
+  .calculation-section {
+    padding: 18px 14px;
   }
 }
 
