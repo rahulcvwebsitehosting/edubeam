@@ -352,10 +352,10 @@ export default defineConfig({
       },
     },
     editLink: {
-      pattern: 'https://github.com/janvorisek/edubeam/edit/main/docs/:path',
+      pattern: 'https://github.com/rahulcvwebsitehosting/edubeam/edit/main/docs/:path',
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/janvorisek/edubeam' },
+      { icon: 'github', link: 'https://github.com/rahulcvwebsitehosting/edubeam' },
       { icon: 'twitter', link: 'https://twitter.com/EdubeamApp' },
     ],
   },

@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/janvorisek/edubeam">
+  <a href="https://github.com/rahulcvwebsitehosting/edubeam">
     <img src="src/assets/logo.svg" alt="edubeam logo" width="90" height="90">
   </a>
 </p>
@@ -17,12 +17,6 @@
   <a href="https://run.edubeam.app/?panel=examples"><strong>Explore example models</strong></a>
 </p>
 
-<p align="center">
-  <img alt="Contributors" src="https://img.shields.io/github/contributors/janvorisek/edubeam?color=0f9d58">
-  <img alt="Issues" src="https://img.shields.io/github/issues/janvorisek/edubeam">
-  <img alt="License" src="https://img.shields.io/github/license/janvorisek/edubeam">
-</p>
-
 ## Table of contents
 
 - [Why edubeam?](#why-edubeam)
@@ -36,7 +30,7 @@
 
 ## Why edubeam?
 
-Edubeam is a lightweight yet professional-grade **finite element environment for 2D structural analysis**. Created by civil engineers and educators, it helps you:
+Edubeam is a lightweight yet professional-grade **finite element environment for 2D structural analysis**. It helps you:
 
 - Teach structural mechanics, stiffness matrices, and load paths with a live, visual tool.
 - Validate early-stage beam or truss designs without installing heavy desktop suites.
@@ -73,7 +67,7 @@ Requirements:
 - npm, pnpm, or yarn (examples below use `npm`)
 
 ```bash
-git clone https://github.com/janvorisek/edubeam.git
+git clone https://github.com/rahulcvwebsitehosting/edubeam.git
 cd edubeam
 npm install
 npm run dev
@@ -126,7 +120,7 @@ If you are improving docs, run `npm run docs:dev` for live previews.
 
 We welcome bug reports, feature ideas, documentation edits, and localisation help. To get started:
 
-1. Check existing [issues](https://github.com/janvorisek/edubeam/issues) or open a new one (bug/feature templates available).
+1. Check existing [issues](https://github.com/rahulcvwebsitehosting/edubeam/issues) or open a new one (bug/feature templates available).
 2. Fork the repo and create a feature branch (`git checkout -b feature/your-topic`).
 3. Commit with clear messages, run tests/linting, and submit a pull request.
 

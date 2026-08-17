@@ -58,7 +58,7 @@ A: Ensure the structure has enough restraints (no free rigid-body modes), confir
 
 ### Q: How do I report a bug or request a feature?
 
-A: Open an issue on [GitHub](https://github.com/janvorisek/edubeam/issues) with steps to reproduce or a description of the enhancement you need. Screenshots and attached JSON exports help a lot.
+A: Open an issue on [GitHub](https://github.com/rahulcvwebsitehosting/edubeam/issues) with steps to reproduce or a description of the enhancement you need. Screenshots and attached JSON exports help a lot.
 
 ### Q: Who do I contact for private support?
 

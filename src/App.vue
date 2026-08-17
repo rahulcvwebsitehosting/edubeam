@@ -386,7 +386,7 @@ const app_commit = APP_COMMIT;
         class="d-none d-sm-inline-flex text-none"
         variant="text"
         prepend-icon="mdi-book-open-page-variant-outline"
-        href="https://edubeam.app"
+        href="https://github.com/rahulcvwebsitehosting/edubeam#readme"
         target="_blank"
       >
         Help
@@ -455,26 +455,6 @@ const app_commit = APP_COMMIT;
 
     <widget-container-modal />
 
-    <!-- <div
-      class="d-none d-sm-flex align-center justify-space-between px-3 text-caption bg-secondary border-t"
-      style="height: 24px"
-    >
-      <div>
-        <a
-          class="text-black text-decoration-none font-weight-medium"
-          href="https://github.com/janvorisek/edubeam/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=%5BBUG%5D"
-          target="_blank"
-          >{{ $t("footer.reportIssue") }}</a
-        >
-        <a
-          class="text-black text-decoration-none font-weight-medium ml-3"
-          href="https://github.com/janvorisek/edubeam/issues/new?assignees=&labels=&projects=&template=feature_request.md&title="
-          target="_blank"
-          >{{ $t("footer.requestFeature") }}</a
-        >
-      </div>
-      <div>edubeam v{{ app_version }} {{ $t("footer.released") }} {{ app_released }}</div>
-    </div> -->
     <ReloadPrompt />
     <input ref="file" type="file" style="display: none" @change="openFile" />
   </v-app>
