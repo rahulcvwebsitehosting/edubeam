@@ -6,9 +6,7 @@ import { max, min } from 'mathjs';
 import {
   deleteElement,
   deleteNode,
-  deserializeModel,
   executeModelMutationWithUndo,
-  serializeModel,
   throttle,
 } from '@/utils';
 import { ensureDimensionId } from '@/utils/id';
@@ -19,7 +17,6 @@ export const useProjectStore = defineStore(
   'project',
   () => {
     const model = ref('LinearStaticSolver');
-    const _solver = ref('');
     const solver = ref(new LinearStaticSolver());
 
     const nthEigenVector = ref(1);
@@ -320,7 +317,6 @@ export const useProjectStore = defineStore(
       selectAll2,
       isAnythingSelected2,
       hover,
-      _solver,
       solver,
       nthEigenVector,
       defoScale,
@@ -336,29 +332,5 @@ export const useProjectStore = defineStore(
       solveDiagnostics,
     };
   },
-  {
-    persist: {
-      pick: ['solver', 'dimensions', '_solver'],
-      serializer: {
-        serialize: (value) => {
-          return serializeModel(value.solver, value.dimensions);
-        },
-        deserialize: (value) => {
-          console.log(value);
-          if (value === undefined) return { _solver: '' };
-          return { _solver: value };
-        },
-      },
-      afterHydrate: (ctx) => {
-        // console.log(ctx.store.$state);
-        if (ctx.store._solver === '') return;
-
-        try {
-          deserializeModel(ctx.store._solver, ctx.store.solver, ctx.store.dimensions);
-        } catch (e) {
-          console.error(e);
-        }
-      },
-    },
-  }
+  {}
 );

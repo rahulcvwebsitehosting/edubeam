@@ -221,8 +221,7 @@ const nextStep = () => {
 };
 
 onMounted(() => {
-  if (projectStore.solver.domain.elements.size === 0) buildAndSolve();
-  else {
+  if (projectStore.solver.domain.elements.size > 0) {
     solveState.value = modelIsSolved.value ? 'solved' : 'idle';
     requestAnimationFrame(() => eventBus.emit(EventType.FIT_CONTENT));
   }

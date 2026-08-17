@@ -5,8 +5,6 @@ import { provide, nextTick } from 'vue';
 import { undoRedoManager } from './CommandManager';
 import Confirmation from './components/dialogs/Confirmation.vue';
 import ReloadPrompt from './components/ReloadPrompt.vue';
-import { createDimensionId } from './utils/id';
-import { createDimensionPointFromNode } from './types/dimension';
 
 export default {
   name: 'App',
@@ -16,7 +14,6 @@ export default {
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import { DofID } from 'ts-fem';
 import { setLocale, availableLocales } from './plugins/i18n';
 
 import Welcome from '@/components/dialogs/Welcome.vue';
@@ -110,8 +107,6 @@ const appStore = useAppStore();
 
 onMounted(() => {
   const solver = useProjectStore().solver;
-  const domain = solver.domain;
-
   const params = new URL(document.location as unknown as URL).searchParams;
   const name = params.get('model');
   const lang = params.get('lang');
@@ -141,53 +136,6 @@ onMounted(() => {
     window.history.pushState({}, '', url.split('?')[0]);
   }
 
-  if (domain.nodes.size > 0) return solve();
-
-  domain.createNode('A', [0, 0, 0], [DofID.Dx, DofID.Dz]);
-  domain.createNode('B', [6, 0, 0], [DofID.Dz]);
-
-  domain.nodes = new Map(domain.nodes);
-
-  domain.createBeam2D('B1', ['A', 'B'], 'Material', 'Section');
-
-  domain.elements = new Map(domain.elements);
-
-  domain.createCrossSection('Section', {
-    a: 0.0035,
-    iy: 8.5e-5,
-    h: 0.2,
-    k: 0.833,
-  });
-
-  domain.createMaterial('Material', {
-    e: 200e9,
-    g: 200e9 / (2 * (1 + 0.3)),
-    alpha: 12.0e-6,
-    d: 7850,
-  });
-
-  //solver.loadCases[0].createNodalLoad(3, { [DofID.Dx]: 10000, [DofID.Dz]: 0, [DofID.Ry]: 10000 });
-  //solver.loadCases[0].createNodalLoad(3, { [DofID.Dx]: 0, [DofID.Dz]: 20 });
-
-  solver.loadCases[0].createBeamElementUniformEdgeLoad('B1', [0, 10000], true);
-  //solver.loadCases[0].createBeamElementUniformEdgeLoad(2, [0, 10000], true);
-  //solver.loadCases[0].createPrescribedDisplacement("a", { [DofID.Dx]: 0.3, [DofID.Dz]: 0.2, [DofID.Ry]: 0.01 });
-
-  domain.materials = new Map(domain.materials);
-  domain.crossSections = new Map(domain.crossSections);
-
-  solver.domain = domain;
-
-  useProjectStore().dimensions.push({
-    id: createDimensionId(),
-    points: [
-      createDimensionPointFromNode(domain.nodes.get('A')!),
-      createDimensionPointFromNode(domain.nodes.get('B')!),
-    ],
-    distance: 1,
-  });
-
-  requestAnimationFrame(solve);
 });
 
 const solve = () => {

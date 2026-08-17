@@ -248,8 +248,6 @@ export const useAppStore = defineStore(
     persist: {
       pick: [
         'panButton',
-        'simpleMode',
-        'quickBeam',
         'onboardingFinished',
         'lastSeenChangelogVersion',
         'locale',
