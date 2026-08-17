@@ -1,70 +1,46 @@
 <p align="center">
   <a href="https://github.com/rahulcvwebsitehosting/edubeam">
-    <img src="src/assets/logo.svg" alt="edubeam logo" width="90" height="90">
+    <img src="src/assets/logo.svg" alt="EduBeam logo" width="96" height="96">
   </a>
 </p>
 
-<h1 align="center">edubeam</h1>
+<h1 align="center">EduBeam</h1>
 
 <p align="center">
-  <strong>Free online structural analysis software for 2D beams, trusses, and frames.</strong><br/>
-  Real-time solver, Timoshenko beam formulation, sharable projects, and fully localized UI—perfect for classrooms, design studios, and hobby labs.
+  <strong>A clean, browser-based workspace for beam and 2D structural analysis.</strong><br>
+  Build a model, apply loads, and inspect reactions, displacement, shear, and moment results in real time.
 </p>
 
-<p align="center">
-  <a href="https://run.edubeam.app"><strong>Launch the web app</strong></a> ·
-  <a href="https://edubeam.app"><strong>Read the documentation</strong></a> ·
-  <a href="https://run.edubeam.app/?panel=examples"><strong>Explore example models</strong></a>
-</p>
+## About this project
 
-## Table of contents
+This repository contains my streamlined version of EduBeam, redesigned around a faster and more approachable workflow. The default **Quick Beam** workspace keeps common beam calculations simple, while **Advanced Mode** preserves detailed finite-element modelling for beams, trusses, and frames.
 
-- [Why edubeam?](#why-edubeam)
-- [Product highlights](#product-highlights)
-- [Launch & try it](#launch--try-it)
-- [Development setup](#development-setup)
-- [Available scripts](#available-scripts)
-- [Documentation & localization](#documentation--localization)
-- [Contributing](#contributing)
-- [License](#license)
+The application runs entirely in the browser. Models stay on the user's device unless they are deliberately exported or shared.
 
-## Why edubeam?
+## Highlights
 
-Edubeam is a lightweight yet professional-grade **finite element environment for 2D structural analysis**. It helps you:
+- Guided Quick Beam setup for span, supports, material, section, and loading
+- Instant reactions, displacement, shear-force, and bending-moment results
+- Advanced 2D modelling for beams, trusses, and frames
+- Point, distributed, thermal, settlement, and prescribed-displacement loads
+- Deformed shapes and N-V-M result diagrams
+- Shareable model URLs and JSON import/export
+- Responsive, multilingual interface
+- Installable Progressive Web App
 
-- Teach structural mechanics, stiffness matrices, and load paths with a live, visual tool.
-- Validate early-stage beam or truss designs without installing heavy desktop suites.
-- Share reproducible models via URLs or JSON for peer review, grading, or collaboration.
+## Technology
 
-Under the hood Edubeam combines a Timoshenko beam formulation, axial truss elements, static condensation, and temperature/load tools into a single browser experience. Everything runs client-side, which means **zero install, zero license servers, and instant updates**.
+- Vue 3 and TypeScript
+- Vite
+- Vuetify
+- Pinia
+- Vitest
+- VitePress documentation
+- Client-side finite-element solver
 
-[![Live view of Edubeam](docs/public/download.png)](https://run.edubeam.app)
+## Run locally
 
-## Product highlights
-
-- **Real-time structural analysis** – Every edit recalculates reactions, nodal displacements, and internal forces on the fly.
-- **Comprehensive loading** – Point loads, distributed loads, prescribed displacements, settlement, and thermal gradients.
-- **Rich visualization** – Overlay undeformed/deformed shapes, N-V-M diagrams, support reactions, and coordinate HUD to spot issues quickly.
-- **Timoshenko beams + truss elements** – Mix frame members and axial-only elements in the same model.
-- **Education-ready** – Show stiffness matrices, DOFs, and solver details to connect theory with practice.
-- **Localization & accessibility** – Full UI translations (EN, CS, DE, ES, FR, ZH) plus keyboard-friendly navigation.
-- **Open source & extensible** – Vue 3 + Vite + TypeScript front-end, Pinia state management, and a dedicated documentation site built with VitePress.
-
-## Launch & try it
-
-1. **Open the live app** – [https://run.edubeam.app](https://run.edubeam.app)
-2. **Load an example** – use the *Examples* sidebar or jump straight to the [gallery](https://run.edubeam.app/?panel=examples).
-3. **Inspect the guides** – the [Introduction](https://edubeam.app/guide/introduction) and [User Interface](https://edubeam.app/guide/user-interface) pages mirror the workflow inside the app.
-4. **Share your work** – use *Share model* to generate a link or download a JSON snapshot for grading and archives.
-
-Edubeam is optimized for desktops/laptops but also runs on tablets with mouse or pencil input.
-
-## Development setup
-
-Requirements:
-
-- Node.js **20.x**
-- npm, pnpm, or yarn (examples below use `npm`)
+Node.js 20.x is recommended.
 
 ```bash
 git clone https://github.com/rahulcvwebsitehosting/edubeam.git
@@ -73,19 +49,22 @@ npm install
 npm run dev
 ```
 
-The Vite dev server starts at `http://localhost:5173` with hot-module reloading.
+Open `http://localhost:5173` in your browser.
 
-### Production build
+## Commands
 
-```bash
-npm run build
-```
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create the production app in `dist/` |
+| `npm run test:run` | Run the test suite once |
+| `npm run lint` | Check and automatically fix lint issues |
+| `npm run docs:dev` | Start the documentation site locally |
+| `npm run docs:build` | Build the documentation site |
 
-Assets are emitted to `dist/` and can be deployed to any static host. The main branch is continuously deployed to [run.edubeam.app](https://run.edubeam.app).
+## Deploy to Vercel
 
-### Deploy on Vercel
-
-This repository includes `vercel.json` with the production settings Vercel needs:
+The repository is ready for Vercel and includes [`vercel.json`](vercel.json). Import the GitHub repository into Vercel and use these settings:
 
 | Setting | Value |
 | --- | --- |
@@ -94,38 +73,24 @@ This repository includes `vercel.json` with the production settings Vercel needs
 | Build command | `npm run build` |
 | Output directory | `dist` |
 
-After importing the repository into Vercel, no extra configuration is required for the core app.
+The included rewrite rule supports direct navigation and browser refreshes in the single-page application.
 
-## Available scripts
+## Project structure
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the application in development mode (Vite) |
-| `npm run build` | Produce the production bundle |
-| `npm run test` / `npm run test:run` | Execute unit tests via Vitest |
-| `npm run lint` | Run ESLint with auto-fix |
-| `npm run docs:dev` | Launch the VitePress docs locally |
-| `npm run docs:build` | Build the static documentation site |
-
-## Documentation & localization
-
-- **Docs hub:** [https://edubeam.app](https://edubeam.app) (built with VitePress).
-- **Guides:** introduction, UI tour, essentials, and theory manuals (Timoshenko beam, truss element).
-- **Languages:** English plus localized content for Czech, German, Spanish, French, and Chinese, matching the in-app translations.
-- **FAQ & examples:** curated to help educators drop Edubeam into lesson plans immediately.
-
-If you are improving docs, run `npm run docs:dev` for live previews.
+```text
+src/                 Application source
+src/components/      Modelling and result UI
+src/store/           Application state
+src/tests/           Automated tests
+docs/                VitePress documentation
+public/              Static assets
+vercel.json          Vercel deployment configuration
+```
 
 ## Contributing
 
-We welcome bug reports, feature ideas, documentation edits, and localisation help. To get started:
-
-1. Check existing [issues](https://github.com/rahulcvwebsitehosting/edubeam/issues) or open a new one (bug/feature templates available).
-2. Fork the repo and create a feature branch (`git checkout -b feature/your-topic`).
-3. Commit with clear messages, run tests/linting, and submit a pull request.
-
-Please keep PRs scope-focused (one fix/feature per PR) and include screenshots when changing UI flows.
+Bug reports and focused pull requests are welcome. Use the repository's [issue tracker](https://github.com/rahulcvwebsitehosting/edubeam/issues) for reproducible bugs and feature proposals.
 
 ## License
 
-Distributed under the **GPL-3.0** license. See [`LICENSE`](LICENSE) for the full text.
+This project is distributed under the GPL-3.0 license. See [`LICENSE`](LICENSE) for the complete terms.
